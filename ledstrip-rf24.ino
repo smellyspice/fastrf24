@@ -67,7 +67,10 @@ void setup() {
 void loop() {
   
   
+  // REMOVE THIS WHEN READY TO TEST LOOP!!!!!
+  ///////////////////////////////////////////////////////
 
+  while(1) { LEDtestShow(); }
 
 
 /****************** Pong Back Role ***************************/
@@ -137,30 +140,36 @@ void loop() {
 void LEDtestShow() {
 
   //fill_solid( leds, NUM_LEDS, CRGB(50,0,200));
-  clearStripWithDelay(1000);
+  //clearStripWithDelay(500,2000);
 
-  // Set head and tail RED
-  leds[0] = CRGB(255,0,0);
-  leds[NUM_LEDS-1] = CRGB(255,0,0);
-  Serial.println("Red");
+    // Set head and tail RED
+  wipeFromCenter(200,0,0, 40, 800);
+  
+  leds[0] = CRGB(200,0,0);
+  leds[NUM_LEDS-1] = CRGB(200,0,0);
   FastLED.show();
-  clearStripWithDelay(400, 800);
-
+  //clearStripWithDelay(400, 800);
+  
+  
   // Set head and tail GREEN
-  leds[0] = CRGB(0,255,0);
-  leds[NUM_LEDS-1] = CRGB(0,255,0);
-  Serial.println("Green");
+  wipeFromCenter(0,200,0, 40, 800);
+  
+  leds[0] = CRGB(0,200,0);
+  leds[NUM_LEDS-1] = CRGB(0,200,0);
   FastLED.show();
-  clearStripWithDelay(400,800);
+  //clearStripWithDelay(400,800);
+  
 
   // Set head and tail BLUE
-  leds[0] = CRGB(0,0,255);
-  leds[NUM_LEDS-1] = CRGB(0,0,255);
-  Serial.println("Blue");
+  wipeFromCenter(0,0,200, 40, 800);
+  
+  leds[0] = CRGB(0,0,200);
+  leds[NUM_LEDS-1] = CRGB(0,0,200);
   FastLED.show();
-  clearStripWithDelay(400,800);
+  //clearStripWithDelay(400,800);
+  
 
-  wipeFromCenter();
+  // wipeFromCenter();
  
 }
 
@@ -181,33 +190,55 @@ void clearLEDWithDelay (int LedNumber, int milSecPause) {
   
 }
 
-void wipeFromCenter () {
+void wipeFromCenter (int r, int g, int b, int milSecPause, int preDelay) {
 
   // find middle of strip
   int ledCenter = NUM_LEDS / 2;
   ledCenter = abs(ledCenter);
+
+  delay(preDelay);
+
+  // determine prominent color used and set tailing dim value
+  int rDim = (r > 0) ? 5 : 0;
+  int gDim = (g > 0) ? 5 : 0;
+  int bDim = (b > 0) ? 5 : 0;
   
   // start wipe
-  for (int count = 0; count < (ledCenter); count ++) {
+  for (int count = 0; count < ledCenter; count++) {
 
-    Serial.println("Count / ledCenter / Before / After / Before -1 / After + 1");
-    Serial.println(count);
-    Serial.println(ledCenter);
-    Serial.println(ledCenter - count);
-    Serial.println(ledCenter + count);
-    Serial.println(ledCenter - (count-1));
-    Serial.println(ledCenter + (count-1));
-    
     // light up next outer leds
-    leds[ledCenter - count] = CRGB::Blue;
-    leds[ledCenter + count] = CRGB::Blue;
+    leds[ledCenter - count] = CRGB(r,g,b);
+    leds[ledCenter + count] = CRGB(r,g,b);
     
     // blank prvious head and tail pixel  
-    /// leds[ledCenter] = CRGB(1,1,1);    // blank center pixel before looping  
-    leds[ledCenter - (count-1)] = CRGB(1,1,1);
-    leds[ledCenter + (count-1)] = CRGB(1,1,1);
+    leds[ledCenter - (count-1)] = CRGB(rDim, gDim, bDim);
+    leds[ledCenter + (count-1)] = CRGB(rDim, gDim, bDim);
     FastLED.show();
-    delay(30);
+    delay(milSecPause);
   }
-  
+
+  // need a final blank for the outer markers
+  leds[1] = CRGB(rDim, gDim, bDim);
+  leds[NUM_LEDS-2] = CRGB(rDim, gDim, bDim);
+  FastLED.show();
+    
+  // Reverse the wipe
+  for (int count = ledCenter; 0 <= count; count--) {
+
+    // light up next outer leds
+    leds[ledCenter - count] = CRGB(r,g,b);
+    leds[ledCenter + count] = CRGB(r,g,b);
+    
+    // blank prvious head and tail pixel  
+    leds[ledCenter - (count+1)] = CRGB(rDim, gDim, bDim);
+    leds[ledCenter + (count+1)] = CRGB(rDim, gDim, bDim);
+    FastLED.show();
+    delay(milSecPause);
+  }
+
+  // need a final blank for the outer markers
+  leds[1] = CRGB(rDim, gDim, bDim);
+  leds[NUM_LEDS-2] = CRGB(rDim, gDim, bDim);
+  FastLED.show(); 
+
 }
