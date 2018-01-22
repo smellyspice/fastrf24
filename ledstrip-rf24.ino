@@ -12,10 +12,13 @@
 #define NUM_LEDS 17
 #define DATA_PIN 5
 
+#define LED_BRIGHT 100
+#define LED_DIM 5
+
 CRGB leds[NUM_LEDS];
 
-// prototying this function so it accepts the optional default
-void clearStripWithDelay (int milSecPause, int OptionalPreDelay=0);
+uint8_t gHue=0;
+
 
 
 /****************** User Config ***************************/
@@ -139,69 +142,43 @@ void loop() {
 
 void LEDtestShow() {
 
-  //fill_solid( leds, NUM_LEDS, CRGB(50,0,200));
-  //clearStripWithDelay(500,2000);
+  sinelon();
 
-    // Set head and tail RED
-  wipeFromCenter(200,0,0, 40, 800);
-  
-  leds[0] = CRGB(200,0,0);
-  leds[NUM_LEDS-1] = CRGB(200,0,0);
   FastLED.show();
-  //clearStripWithDelay(400, 800);
-  
-  
-  // Set head and tail GREEN
-  wipeFromCenter(0,200,0, 40, 800);
-  
-  leds[0] = CRGB(0,200,0);
-  leds[NUM_LEDS-1] = CRGB(0,200,0);
-  FastLED.show();
-  //clearStripWithDelay(400,800);
-  
+  FastLED.delay(1000/120);
 
-  // Set head and tail BLUE
-  wipeFromCenter(0,0,200, 40, 800);
-  
-  leds[0] = CRGB(0,0,200);
-  leds[NUM_LEDS-1] = CRGB(0,0,200);
-  FastLED.show();
-  //clearStripWithDelay(400,800);
-  
-
-  // wipeFromCenter();
+  EVERY_N_MILLISECONDS( 20 ) { gHue++; }
  
 }
 
-void clearStripWithDelay (int milSecPause, int OptionalPreDelay=0) {
 
-  delay(OptionalPreDelay);
-  FastLED.clear();
-  FastLED.show();
-  delay(milSecPause);
+void sinelon() {
+
+  Serial.println(gHue);
+  int ledCenter = NUM_LEDS / 2;
+  // a colored dot sweeping back and forth, with fading trails
+  fadeToBlackBy( leds, NUM_LEDS, 20);
+  int pos = beatsin16( 20, ledCenter, (NUM_LEDS-1) );
+  leds[pos] += CHSV( gHue, 255, LED_BRIGHT);
+  int pos2 = ledCenter - (pos-ledCenter);
+  leds[pos2] += CHSV( gHue, 255, LED_BRIGHT);
   
 }
 
-void clearLEDWithDelay (int LedNumber, int milSecPause) {
-
-  leds[LedNumber] = CRGB::Black;
-  FastLED.show();
-  delay(milSecPause);
-  
-}
 
 void wipeFromCenter (int r, int g, int b, int milSecPause, int preDelay) {
 
   // find middle of strip
   int ledCenter = NUM_LEDS / 2;
-  ledCenter = abs(ledCenter);
+  //ledCenter = abs(ledCenter);
+  ledCenter = abs8(ledCenter);
 
   delay(preDelay);
 
   // determine prominent color used and set tailing dim value
-  int rDim = (r > 0) ? 5 : 0;
-  int gDim = (g > 0) ? 5 : 0;
-  int bDim = (b > 0) ? 5 : 0;
+  int rDim = (r > 0) ? LED_DIM : 0;
+  int gDim = (g > 0) ? LED_DIM : 0;
+  int bDim = (b > 0) ? LED_DIM : 0;
   
   // start wipe
   for (int count = 0; count < ledCenter; count++) {
@@ -211,13 +188,15 @@ void wipeFromCenter (int r, int g, int b, int milSecPause, int preDelay) {
     leds[ledCenter + count] = CRGB(r,g,b);
     
     // blank prvious head and tail pixel  
-    leds[ledCenter - (count-1)] = CRGB(rDim, gDim, bDim);
-    leds[ledCenter + (count-1)] = CRGB(rDim, gDim, bDim);
+    fadeToBlackBy( leds, NUM_LEDS, 127);
+//    leds[ledCenter - (count-1)] = CRGB(rDim, gDim, bDim);
+//    leds[ledCenter + (count-1)] = CRGB(rDim, gDim, bDim);
     FastLED.show();
     delay(milSecPause);
   }
 
   // need a final blank for the outer markers
+  fadeToBlackBy( leds, NUM_LEDS, 127);
   leds[1] = CRGB(rDim, gDim, bDim);
   leds[NUM_LEDS-2] = CRGB(rDim, gDim, bDim);
   FastLED.show();
@@ -230,15 +209,23 @@ void wipeFromCenter (int r, int g, int b, int milSecPause, int preDelay) {
     leds[ledCenter + count] = CRGB(r,g,b);
     
     // blank prvious head and tail pixel  
-    leds[ledCenter - (count+1)] = CRGB(rDim, gDim, bDim);
-    leds[ledCenter + (count+1)] = CRGB(rDim, gDim, bDim);
+    fadeToBlackBy( leds, NUM_LEDS, 127);
+//    leds[ledCenter - (count+1)] = CRGB(rDim, gDim, bDim);
+//    leds[ledCenter + (count+1)] = CRGB(rDim, gDim, bDim);
     FastLED.show();
     delay(milSecPause);
   }
 
   // need a final blank for the outer markers
+  fadeToBlackBy( leds, NUM_LEDS, 127);
   leds[1] = CRGB(rDim, gDim, bDim);
   leds[NUM_LEDS-2] = CRGB(rDim, gDim, bDim);
   FastLED.show(); 
+
+}
+
+void flashCenterAndEnds () {
+
+  
 
 }
