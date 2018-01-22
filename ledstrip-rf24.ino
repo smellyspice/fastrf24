@@ -15,10 +15,13 @@
 #define LED_BRIGHT 100
 #define LED_DIM 5
 
+
+// LED sepecific items
 CRGB leds[NUM_LEDS];
-
 uint8_t gHue=0;
-
+int colorChangeFlag = 0;
+#define COLOR_SIZE 3
+int colorValues[COLOR_SIZE] = { 0, 96, 160 };
 
 
 /****************** User Config ***************************/
@@ -142,19 +145,34 @@ void loop() {
 
 void LEDtestShow() {
 
-  sinelon();
-
-  FastLED.show();
-  FastLED.delay(1000/120);
-
-  EVERY_N_MILLISECONDS( 20 ) { gHue++; }
+  int i; 
+  
+  while ( i < COLOR_SIZE ) {
+    
+      int endOfStrip = sinelon();
+      
+      if ( endOfStrip == 0 && colorChangeFlag == 0 ) { 
+        gHue = colorValues[i]; 
+        colorChangeFlag = 1;
+        i++;
+        Serial.println(endOfStrip);
+        Serial.println(gHue);
+      } else if (colorChangeFlag ==1 && endOfStrip > 0) {
+        colorChangeFlag = 0;
+        Serial.println(endOfStrip);
+      }
+        
+      FastLED.show();
+      FastLED.delay(1000/120);
+  
+  }
  
 }
 
 
-void sinelon() {
+int sinelon() {
 
-  Serial.println(gHue);
+  //Serial.println(gHue);
   int ledCenter = NUM_LEDS / 2;
   // a colored dot sweeping back and forth, with fading trails
   fadeToBlackBy( leds, NUM_LEDS, 20);
@@ -162,7 +180,8 @@ void sinelon() {
   leds[pos] += CHSV( gHue, 255, LED_BRIGHT);
   int pos2 = ledCenter - (pos-ledCenter);
   leds[pos2] += CHSV( gHue, 255, LED_BRIGHT);
-  
+
+  return (pos2);
 }
 
 
