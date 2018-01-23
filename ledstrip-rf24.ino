@@ -11,6 +11,9 @@
 #include <FastLED.h>
 #define NUM_LEDS 17
 #define DATA_PIN 5
+#define COLOR_ORDER BRG
+#define LED_TYPE WS2811                                       // Using APA102, WS2812, WS2801. Don't forget to change LEDS.addLeds.
+
 
 #define LED_BRIGHT 100
 #define LED_DIM 5
@@ -19,6 +22,9 @@
 // LED sepecific items
 CRGB leds[NUM_LEDS];
 uint8_t gHue=0;
+uint8_t thisbeat =  25;                                       // Beats per minute for first part of dot.
+uint8_t thisfade =  8;                                       // How quickly does it fade? Lower = slower fade rate.
+
 int colorChangeFlag = 0;
 #define COLOR_SIZE 3
 int colorValues[COLOR_SIZE] = { 0, 96, 160 };
@@ -37,10 +43,26 @@ byte addresses[][6] = {"1Node","2Node"};
 // Used to control whether this node is sending or receiving
 bool role = 0;
 
+
+
+
+
+
 void setup() {
   Serial.begin(115200);
+
+  // Initialize LEDs - we want to put on a bit of a show to know things are working before we go to the main RF loop
+  FastLED.addLeds<LED_TYPE, DATA_PIN, COLOR_ORDER>(leds, NUM_LEDS).setCorrection(TypicalLEDStrip);
+  
+  Serial.println("Running LED Test");
+  LEDtestShow();
+  Serial.println("LED Test done.");
+
+  
   Serial.println(F("RF24/examples/GettingStarted"));
   Serial.println(F("*** PRESS 'T' to begin transmitting to the other node"));
+
+
   
   radio.begin();
 
@@ -61,14 +83,8 @@ void setup() {
   radio.startListening();
 
 
-
-  // Initialize LEDs - we want to put on a bit of a show to know things are working before we go to the main RF loop
-  FastLED.addLeds<WS2811, DATA_PIN, BRG>(leds, NUM_LEDS);
-  LEDtestShow();
-
- 
-
 }
+
 
 void loop() {
   
@@ -76,7 +92,9 @@ void loop() {
   // REMOVE THIS WHEN READY TO TEST LOOP!!!!!
   ///////////////////////////////////////////////////////
 
-  while(1) { LEDtestShow(); }
+  while(1) { 
+      // LEDtestShow();
+    }
 
 
 /****************** Pong Back Role ***************************/
@@ -145,46 +163,84 @@ void loop() {
 
 void LEDtestShow() {
 
-  int i; 
+  Serial.println("HI!");
+
+  int i = 0; 
+  int ledBrightness = LED_BRIGHT;
+  int waitBlack = 1;
   
-  while ( i < COLOR_SIZE ) {
-    
-      int endOfStrip = sinelon();
+  while ( (i < COLOR_SIZE) || waitBlack ) {
+
+      int endOfStrip = sinelon(ledBrightness);     //when EoS=0 we want to change to the next color
+
       
-      if ( endOfStrip == 0 && colorChangeFlag == 0 ) { 
-        gHue = colorValues[i]; 
-        colorChangeFlag = 1;
-        i++;
-        Serial.println(endOfStrip);
-        Serial.println(gHue);
-      } else if (colorChangeFlag ==1 && endOfStrip > 0) {
-        colorChangeFlag = 0;
-        Serial.println(endOfStrip);
-      }
+      if ( endOfStrip == 0 && colorChangeFlag == 0 ) {        // when at end of strip and change flag = 0, set pre-change flag = 2
+          colorChangeFlag = 2;
+      
         
+      } else if ( colorChangeFlag == 1 && endOfStrip > 0 && i < COLOR_SIZE ) {     //  
+          colorChangeFlag = 0;
+          (i < COLOR_SIZE) ? i++ : i;
+          
+      } else if ( colorChangeFlag == 2 && endOfStrip > 0  ) {
+          colorChangeFlag = 1;
+          gHue = colorValues[i]; 
+                    
+      }
+
+      Serial.print("i: ");
+      Serial.println(i);
+      Serial.print("endOfStrip: ");
+      Serial.println(endOfStrip);
+      Serial.print("colorChangeFlag: ");
+      Serial.println(colorChangeFlag);
+      
+      if ( i == COLOR_SIZE && endOfStrip == 0 ) {
+          ledBrightness = 0;
+          waitBlack = checkAllFaded();
+          //Serial.print("waitBlack: ");
+          //Serial.println(waitBlack);
+          //Serial.print("endOfStrip: ");
+          //Serial.println(endOfStrip);
+      }
+      
       FastLED.show();
       FastLED.delay(1000/120);
   
   }
- 
+       
 }
 
 
-int sinelon() {
+int sinelon(int ledBrightness) {
 
   //Serial.println(gHue);
   int ledCenter = NUM_LEDS / 2;
   // a colored dot sweeping back and forth, with fading trails
-  fadeToBlackBy( leds, NUM_LEDS, 20);
-  int pos = beatsin16( 20, ledCenter, (NUM_LEDS-1) );
-  leds[pos] += CHSV( gHue, 255, LED_BRIGHT);
+  fadeToBlackBy( leds, NUM_LEDS, thisfade);
+  int pos = beatsin16( thisbeat, ledCenter, (NUM_LEDS-1) );
   int pos2 = ledCenter - (pos-ledCenter);
-  leds[pos2] += CHSV( gHue, 255, LED_BRIGHT);
+  leds[pos] += CHSV( gHue, 255, ledBrightness);
+  leds[pos2] += CHSV( gHue, 255, ledBrightness);
 
   return (pos2);
+  
+}
+
+int checkAllFaded() {
+
+    int brightest = 0;
+    
+    for (int i = 0; i < NUM_LEDS; i++) {
+      brightest = (leds[i].getLuma() > brightest) ? leds[i].getLuma() : brightest;
+    }
+
+    return brightest;
 }
 
 
+////////// NO LONG USING THIS FUNCTION
+/////////////////////////////////////////////////////////////////////////////
 void wipeFromCenter (int r, int g, int b, int milSecPause, int preDelay) {
 
   // find middle of strip
