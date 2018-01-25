@@ -9,25 +9,23 @@
 #include "RF24.h"
 
 #include <FastLED.h>
+
+// LED sepecific items
 #define NUM_LEDS 17
 #define DATA_PIN 5
 #define COLOR_ORDER BRG
 #define LED_TYPE WS2811                                       // Using APA102, WS2812, WS2801. Don't forget to change LEDS.addLeds.
-
-
 #define LED_BRIGHT 100
-#define LED_DIM 5
 
-
-// LED sepecific items
 CRGB leds[NUM_LEDS];
 uint8_t gHue=0;
-uint8_t thisbeat =  25;                                       // Beats per minute for first part of dot.
+uint8_t thisbeat =  25;    // was 25                                   // Beats per minute for first part of dot.
 uint8_t thisfade =  8;                                       // How quickly does it fade? Lower = slower fade rate.
 
-int colorChangeFlag = 0;
 #define COLOR_SIZE 3
-int colorValues[COLOR_SIZE] = { 0, 96, 160 };
+int colorValues[COLOR_SIZE] = { 0, 96, 160 };           // 0 = RED  96 = GREEN  160 = BLUE
+
+// END ------ LED sepecific items
 
 
 /****************** User Config ***************************/
@@ -97,6 +95,7 @@ void loop() {
     }
 
 
+
 /****************** Pong Back Role ***************************/
 
   if ( role == 0 )
@@ -163,49 +162,44 @@ void loop() {
 
 void LEDtestShow() {
 
-  Serial.println("HI!");
+  Serial.println("<<<<<<<<<<<<<< LED TEST SHOW START >>>>>>>>>>>>>>>>>>>>!");
 
   int i = 0; 
   int ledBrightness = LED_BRIGHT;
   int waitBlack = 1;
+  int colorChangeFlag = 0;   
+
   
-  while ( (i < COLOR_SIZE) || waitBlack ) {
+  while ( (i < COLOR_SIZE) || waitBlack ) {       // exit while after all color changes and all leds fade to black
 
-      int endOfStrip = sinelon(ledBrightness);     //when EoS=0 we want to change to the next color
+      int endOfStrip = sinelon(ledBrightness);     //when EoS=0 we want to change to the next color, but only after the first run
 
       
-      if ( endOfStrip == 0 && colorChangeFlag == 0 ) {        // when at end of strip and change flag = 0, set pre-change flag = 2
-          colorChangeFlag = 2;
-      
-        
-      } else if ( colorChangeFlag == 1 && endOfStrip > 0 && i < COLOR_SIZE ) {     //  
-          colorChangeFlag = 0;
-          (i < COLOR_SIZE) ? i++ : i;
-          
-      } else if ( colorChangeFlag == 2 && endOfStrip > 0  ) {
+      // when at end of strip and change flag = 0, set change flag=1
+      if ( endOfStrip == 0 && colorChangeFlag == 0 ) {        
           colorChangeFlag = 1;
+          Serial.println("ColorChangeFlag = SET");
+
+
+      // set change flag after we've lit the first light
+      } else if ( colorChangeFlag == 1 && endOfStrip > 0  ) {     
+          colorChangeFlag = 0;
           gHue = colorValues[i]; 
+          (i < COLOR_SIZE) ? i++ : i;
+          Serial.print("Color Changed to #: ");
+          Serial.println(i);
                     
       }
-
-      Serial.print("i: ");
-      Serial.println(i);
-      Serial.print("endOfStrip: ");
-      Serial.println(endOfStrip);
-      Serial.print("colorChangeFlag: ");
-      Serial.println(colorChangeFlag);
       
+      // no more color changes, set led brightness to 0 for subsequent calls to sinelon for fade-to-black
       if ( i == COLOR_SIZE && endOfStrip == 0 ) {
-          ledBrightness = 0;
-          waitBlack = checkAllFaded();
-          //Serial.print("waitBlack: ");
-          //Serial.println(waitBlack);
-          //Serial.print("endOfStrip: ");
-          //Serial.println(endOfStrip);
+          ledBrightness = 0;                        
+          waitBlack = checkAllFaded();              // returns value of brightest led in strip
+
       }
-      
-      FastLED.show();
-      FastLED.delay(1000/120);
+
+
+      FastLED.delay(1000/120);      // this delay also runs show() for some reason
   
   }
        
@@ -214,16 +208,29 @@ void LEDtestShow() {
 
 int sinelon(int ledBrightness) {
 
-  //Serial.println(gHue);
-  int ledCenter = NUM_LEDS / 2;
-  // a colored dot sweeping back and forth, with fading trails
+  int ledCenter = NUM_LEDS / 2;   
+  
+  // fades led by thisfade amount
   fadeToBlackBy( leds, NUM_LEDS, thisfade);
-  int pos = beatsin16( thisbeat, ledCenter, (NUM_LEDS-1) );
-  int pos2 = ledCenter - (pos-ledCenter);
-  leds[pos] += CHSV( gHue, 255, ledBrightness);
-  leds[pos2] += CHSV( gHue, 255, ledBrightness);
+  //nscale8_video(leds, NUM_LEDS, 192);
+  
+  int firstHalf  = beatsin8( thisbeat, 0, ledCenter, 0, 192 );    // rotating phase by 192 to force a zero start
+  int secondHalf = (NUM_LEDS-1) - firstHalf;
 
-  return (pos2);
+  if ( ledBrightness > 0 ) {
+    Serial.print("ledBrightness: ");
+    Serial.println(ledBrightness);
+    leds[firstHalf]  += CHSV( gHue, 255, ledBrightness);
+    leds[secondHalf] += CHSV( gHue, 255, ledBrightness);
+  }
+
+  Serial.println("=========================");
+  Serial.println("First / Second");
+  Serial.println(firstHalf);
+  Serial.println(secondHalf);
+  Serial.println("=========================");
+
+  return (firstHalf);
   
 }
 
@@ -233,74 +240,13 @@ int checkAllFaded() {
     
     for (int i = 0; i < NUM_LEDS; i++) {
       brightest = (leds[i].getLuma() > brightest) ? leds[i].getLuma() : brightest;
+        Serial.println("i / Luma:");
+        Serial.println(i);
+        Serial.println(leds[i].getLuma());
+        
     }
-
+    Serial.print("Returning ");
+    Serial.println(brightest);
     return brightest;
 }
 
-
-////////// NO LONG USING THIS FUNCTION
-/////////////////////////////////////////////////////////////////////////////
-void wipeFromCenter (int r, int g, int b, int milSecPause, int preDelay) {
-
-  // find middle of strip
-  int ledCenter = NUM_LEDS / 2;
-  //ledCenter = abs(ledCenter);
-  ledCenter = abs8(ledCenter);
-
-  delay(preDelay);
-
-  // determine prominent color used and set tailing dim value
-  int rDim = (r > 0) ? LED_DIM : 0;
-  int gDim = (g > 0) ? LED_DIM : 0;
-  int bDim = (b > 0) ? LED_DIM : 0;
-  
-  // start wipe
-  for (int count = 0; count < ledCenter; count++) {
-
-    // light up next outer leds
-    leds[ledCenter - count] = CRGB(r,g,b);
-    leds[ledCenter + count] = CRGB(r,g,b);
-    
-    // blank prvious head and tail pixel  
-    fadeToBlackBy( leds, NUM_LEDS, 127);
-//    leds[ledCenter - (count-1)] = CRGB(rDim, gDim, bDim);
-//    leds[ledCenter + (count-1)] = CRGB(rDim, gDim, bDim);
-    FastLED.show();
-    delay(milSecPause);
-  }
-
-  // need a final blank for the outer markers
-  fadeToBlackBy( leds, NUM_LEDS, 127);
-  leds[1] = CRGB(rDim, gDim, bDim);
-  leds[NUM_LEDS-2] = CRGB(rDim, gDim, bDim);
-  FastLED.show();
-    
-  // Reverse the wipe
-  for (int count = ledCenter; 0 <= count; count--) {
-
-    // light up next outer leds
-    leds[ledCenter - count] = CRGB(r,g,b);
-    leds[ledCenter + count] = CRGB(r,g,b);
-    
-    // blank prvious head and tail pixel  
-    fadeToBlackBy( leds, NUM_LEDS, 127);
-//    leds[ledCenter - (count+1)] = CRGB(rDim, gDim, bDim);
-//    leds[ledCenter + (count+1)] = CRGB(rDim, gDim, bDim);
-    FastLED.show();
-    delay(milSecPause);
-  }
-
-  // need a final blank for the outer markers
-  fadeToBlackBy( leds, NUM_LEDS, 127);
-  leds[1] = CRGB(rDim, gDim, bDim);
-  leds[NUM_LEDS-2] = CRGB(rDim, gDim, bDim);
-  FastLED.show(); 
-
-}
-
-void flashCenterAndEnds () {
-
-  
-
-}
