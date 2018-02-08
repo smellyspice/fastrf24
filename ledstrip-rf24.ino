@@ -20,7 +20,7 @@
 #define DATA_PIN3 6
 #define COLOR_ORDER BRG
 #define LED_TYPE WS2811                                       // Using APA102, WS2812, WS2801. Don't forget to change LEDS.addLeds.
-#define LED_BRIGHT 150
+#define LED_BRIGHT 100
 
 CRGB leds[NUM_LEDS];
 uint8_t gHue=0;
@@ -105,7 +105,8 @@ void loop() {
 //
   while(1) { 
       // LEDtestShow();
-      waveMaker();
+      //waveMaker();
+      rain();
       delay(5000);
     }
 
@@ -173,8 +174,15 @@ void loop() {
     }
     
     if ( c == 'L' ) {
-        LEDtestShow();
+        //LEDtestShow();
+        ledOutlineTest(LED_BRIGHT);
     }
+    
+    if ( c == 'W' ) {
+      waveMaker();     
+    }
+
+
     
   }
 
@@ -319,22 +327,67 @@ void ledOutlineTest(int ledBrightness) {
 
 void waveMaker() {
 
-  Serial.println("Entering WAVE...");
-  int myBPM = 40; 
+  //Serial.println("Entering WAVE...");
+  int myBPM = 35; 
   
   while (1) {
     
-    int wavePos1 = beatsin8( myBPM, 0,  NUM_LEDS_PER_STRIP-1, 0, 0 );  
-    int wavePos2 = beatsin8( myBPM, 0 + NUM_LEDS_PER_STRIP, NUM_LEDS_PER_STRIP*2-1, 0, 16);   // middle strip is shorter!!!
-    int wavePos3 = beatsin8( myBPM, 0 + (NUM_LEDS_PER_STRIP * 2), NUM_LEDS -1, 0, 32);    
+    for (int a = 0; a < (NUM_STRIPS); a++) {
 
-    leds[wavePos1].setHue(HUE_BLUE);
-    leds[wavePos2].setHue(HUE_BLUE);
-    leds[wavePos3].setHue(HUE_BLUE);
-       
-    //fadeToBlackBy( leds, NUM_LEDS, 1);
-    nscale8_video( leds, NUM_LEDS, 10);
+        // calculate the end of value of each strip, never return 0!
+        int EOS = ( (NUM_LEDS_PER_STRIP * a) < 1 ) ? NUM_LEDS_PER_STRIP - 1 : NUM_LEDS_PER_STRIP * (a+1) - 1;
+        int wavePos = beatsin8( myBPM, NUM_LEDS_PER_STRIP * a, EOS, 0, 16 * a );  
+        leds[wavePos].setHue(HUE_BLUE);
+    
+    }
+
+    fadeToBlackBy( leds, NUM_LEDS, 50);
     FastLED.delay(1000/120);
+    //nscale8_video( leds, NUM_LEDS, 100);      // we loose fading trails with this
+
+  }
+     
+  
+}
+
+
+void rain() {
+
+  //Serial.println("Entering WAVE...");
+  int myBPM = 35; 
+  int lastWave = NUM_LEDS -1;
+  
+  while (1) {
+    
+    for (int a = 0; a < (NUM_STRIPS); a++) {
+
+            // NUM_STRIPS 3
+            // NUM_LEDS_PER_STRIP 16
+            // 0,  15        0 = NUM_LEDS_PER_STRIP * a,  15 = (NUM_LEDS_PER_STRIP - 1) * (a+1)   a=1
+            // 16, 31       16 = NUM_LEDS_PER_STRIP * 1,  31 = (NUM_LEDS_PER_STRIP - 1) * (a+1)   a=2
+            // 32, 47       32 = NUM_LEDS_PER_STRIP * 2,  47 = (NUM_LEDS_PER_STRIP - 1) * (a+1)   a=3
+
+        // calculate the end of value of each strip, never return 0!
+        int EOS = ( (NUM_LEDS_PER_STRIP * a) < 1 ) ? NUM_LEDS_PER_STRIP - 1 : NUM_LEDS_PER_STRIP * (a+1) - 1;
+        int wavePos = beatsin8( myBPM, NUM_LEDS_PER_STRIP * a, EOS, 0, 16 * a );  
+        leds[wavePos].setHue(HUE_BLUE);
+    
+    }
+
+    fadeToBlackBy( leds, NUM_LEDS, 50);
+    FastLED.delay(1000/120);
+
+    
+//    if ( wavePos3 < lastWave ) {
+//      leds[wavePos1].setHue(HUE_BLUE);
+//      leds[wavePos2].setHue(HUE_BLUE);
+//      leds[wavePos3].setHue(HUE_BLUE);
+//      lastWave = wavePos3;
+//    } else if (wavePos3 == NUM_LEDS -1) {
+//      lastWave = NUM_LEDS -1;
+//    }
+    
+    
     
   }
      
